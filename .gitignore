@@ -1,0 +1,22 @@
+﻿# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local environments
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Potentially sensitive data
+secrets.txt
+credentials.txt
+*.key
+*.pem
+
+# Large local artifacts
+*.pcap
+*.dump
