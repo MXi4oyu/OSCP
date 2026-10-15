@@ -1,6 +1,6 @@
 # Kali and Shell Basics
 
-A practical reference for Linux commands used during OSCP preparation and CTF practice. Examples generally work on Kali Linux and Ubuntu unless noted.
+A practical reference for Linux command-line basics used during OSCP preparation and CTF practice. Examples generally work on Kali Linux and Ubuntu unless noted.
 
 ## Quick Reference
 
@@ -8,39 +8,49 @@ A practical reference for Linux commands used during OSCP preparation and CTF pr
 |---|---|---|
 | Identify distribution | `cat /etc/os-release` | Distribution and release |
 | Check kernel | `uname -r` | Running kernel version |
-| Identify current user | `whoami` / `id` | Username, UID, groups |
+| Identify current user and groups | `whoami` / `id` | Username, UID, groups |
+| Show current directory | `pwd` | Working directory |
+| Change directory | `cd /path` | Use an absolute or relative path |
+| Return to previous directory | `cd -` | Different from `cd ..` |
+| List hidden files and permissions | `ls -la` | Includes dotfiles |
+| Identify file type | `file filename` | Does not rely on the extension |
+| Read a long file | `less filename` | Search with `/pattern`; quit with `q` |
+| Read command manual | `man find` | Quit with `q` |
+| Search manual-page descriptions | `man -k passwd` | Search by keyword |
 | Check command availability | `command -v nmap` | Checks the current `PATH` |
-| Read command help | `man find` | Search with `/keyword`; quit with `q` |
-| Search manual pages | `man -k passwd` | Search by keyword |
-| List files and permissions | `ls -la` | Includes hidden files |
-| Identify file type | `file filename` | Does not rely on the filename extension |
-| Search for SUID files | `find / -perm -4000 -type f 2>/dev/null` | Permission-based enumeration |
-| Search text | `grep -in 'pattern' file` | Case-insensitive; show line numbers |
-| Show listening TCP/UDP sockets | `ss -lntup` | Some process details may require elevated privileges |
-| Show network interfaces | `ip a` | Interface addresses |
-| Show routes | `ip route` | Routing table |
-| Print working directory | `pwd` | Current directory |
-| Go to previous directory | `cd -` | Different from `cd ..` |
-| Read a long file | `less file` | Search with `/pattern`; quit with `q` |
-| Follow a log | `tail -f file` | Display appended lines |
 | Save output | `command > output.txt` | Overwrites the file |
 | Append output | `command >> output.txt` | Appends to the file |
 | Suppress error messages | `command 2>/dev/null` | Hides standard error |
-| Create a compressed archive | `tar -czf archive.tar.gz dir/` | gzip-compressed tar |
+| Check listening sockets | `ss -lntup` | Process details may require elevated privileges |
+| Show interfaces and addresses | `ip a` | Network interface information |
+| Show routes | `ip route` | Routing table |
+| Search for SUID files | `find / -perm -4000 -type f 2>/dev/null` | A lead to investigate, not proof of a vulnerability |
+| Create a gzip-compressed archive | `tar -czf archive.tar.gz directory/` | Creates a `.tar.gz` archive |
 | List archive contents | `tar -tzf archive.tar.gz` | Inspect before extracting |
-| Extract an archive | `tar -xzf archive.tar.gz` | Check destination first |
+| Extract an archive | `tar -xzf archive.tar.gz -C extracted/` | Ensure destination exists |
 
-## 1. Basic Linux System Enumeration
+## 1. First Commands and System Enumeration
 
-Identify the system and current privileges before choosing the next enumeration steps.
+Start by identifying the current environment, account, and basic network configuration. These details help you decide what to investigate next.
 
-### 1.1 Identify the Operating System and Kernel
+### 1.1 Identify the Shell and Working Directory
+
+```bash
+echo "$SHELL"
+pwd
+hostname
+```
+
+- `echo "$SHELL"` shows the configured login shell; it may not identify the shell process currently running.
+- `pwd` prints the current working directory.
+- `hostname` prints the system hostname.
+
+### 1.2 Identify the Operating System and Kernel
 
 ```bash
 cat /etc/os-release
 uname -a
 uname -r
-hostname
 ```
 
 | Command | Purpose |
@@ -48,27 +58,24 @@ hostname
 | `cat /etc/os-release` | Distribution and release information |
 | `uname -a` | Kernel, hostname, architecture, and other system information |
 | `uname -r` | Running kernel version |
-| `hostname` | Current hostname |
 
-**Common mistake:** The distribution version and kernel version are different. Check both with `cat /etc/os-release` and `uname -r`. A version number alone does not prove that a vulnerability is present; patch level and configuration also matter.
+**Common mistake:** Distribution version and kernel version are different. Check both. A version number alone does not prove that a vulnerability is present; patch level and configuration also matter.
 
 ![Ubuntu distribution and kernel version](images/linux-system-enumeration.png)
 
-### 1.2 Identify the Current User and Privileges
+### 1.3 Identify the Current User and Privileges
 
 ```bash
 whoami
 id
 ```
 
-| Command | Purpose |
-|---|---|
-| `whoami` | Current username |
-| `id` | UID, primary GID, and supplementary groups |
+- `whoami` prints the current username.
+- `id` shows the UID, primary GID, and supplementary groups.
 
-Check group membership as well as the username. Group membership can affect access to files, devices, and administrative tools.
+Check group membership as well as the username. Groups can affect access to files, devices, and administrative tools.
 
-### 1.3 Check Network Interfaces and Routes
+### 1.4 Check Network Interfaces and Routes
 
 ```bash
 ip a
@@ -80,22 +87,24 @@ ip route
 | `ip a` | Network interfaces and IP addresses |
 | `ip route` | Routing table and default route |
 
-### 1.4 Check Listening Services
+### 1.5 Check Listening Services
 
 ```bash
 ss -lntup
 ```
 
+![Example output of ss -lntup showing listening TCP and UDP sockets](images/ss-listening-sockets-example.png)
+
 This lists listening TCP and UDP sockets. Process details may require elevated privileges.
 
-## 2. Linux Manual Pages (`man`)
+## 2. Help and Manual Pages
 
-Use `man` to check unfamiliar command syntax and options. Manual pages or their index may be missing on minimal target systems.
+Use built-in help and manual pages to resolve unfamiliar syntax and options. Manual pages or their index may be missing on minimal target systems.
 
-### 2.1 Essential `man` Commands
+### 2.1 Essential Help Commands
 
 ```bash
-# Read a command manual
+# Open a command manual
 man find
 
 # Show help, if supported
@@ -118,45 +127,24 @@ man 5 passwd
 
 ### 2.2 Manual Sections to Recognise
 
-Manual pages are grouped into sections. A name may appear in more than one section, because the sections document different kinds of entries. Use a section number when you need a specific entry.
+A name can appear in more than one manual section because each section describes a different kind of entry. Use a section number when you need a specific entry.
 
-| Section | Description | Example | OSCP / CTF relevance |
+| Section | Content | Example | OSCP / CTF relevance |
 |---|---|---|---|
-| `1` | User commands and executable programs | `man 1 passwd` | **High** — command syntax and options |
-| `2` | System calls provided by the kernel | `man 2 open` | Medium — low-level program behaviour |
-| `3` | Library functions, commonly C library functions | `man 3 printf` | Medium — program and library behaviour |
-| `4` | Special files, usually found under `/dev` | `man 4 null` | Low to medium — device and special-file details |
-| `5` | File formats and configuration files | `man 5 passwd` | **High** — configuration and file formats |
+| `1` | User commands and executable programs | `man 1 passwd` | High — command syntax and options |
+| `2` | Kernel system calls | `man 2 open` | Medium — low-level program behaviour |
+| `3` | Library functions | `man 3 printf` | Medium — program and library behaviour |
+| `4` | Special files and device files | `man 4 null` | Low to medium — device details |
+| `5` | File formats and configuration files | `man 5 passwd` | High — configuration and file formats |
 | `6` | Games and entertainment | `man 6 game-name` | Low — rarely relevant to core OSCP tasks |
-| `7` | Miscellaneous topics, including conventions and protocols | `man 7 ip` | Medium — concepts, conventions, and protocols |
-| `8` | System administration commands | `man 8 ip` | **High** — administrative and system-management tools |
+| `7` | Miscellaneous topics, conventions, and protocols | `man 7 ip` | Medium — concepts and conventions |
+| `8` | System administration commands | `man 8 ip` | High — administration tools |
 
-Examples depend on which manual pages are installed. If an example is unavailable on your system, try another entry or search by keyword.
+The examples available depend on the manual pages installed on the system. Section numbers identify the type of entry, not its importance or privilege level.
 
-**Sections worth prioritising:**
+**Prioritise sections 1, 5, and 8** for common command syntax, configuration formats, and administration tools. Recognise sections 2 and 3 when investigating system calls or library behaviour.
 
-- **Section 1:** Learn the syntax and options of commands such as `find`, `grep`, `ssh`, and `tar`.
-- **Section 5:** Look up configuration and file formats, such as `passwd`, `shadow`, and `sudoers`.
-- **Section 8:** Check system-administration tools where a separate section 8 page exists.
-- **Sections 2 and 3:** Consult these when investigating system calls, library functions, or low-level program behaviour.
-- **Sections 4, 6, and 7:** Recognise what they contain; consult them when a task makes them relevant.
-
-```bash
-# The passwd command
-man 1 passwd
-
-# The /etc/passwd file format
-man 5 passwd
-
-# Search for manual entries related to passwords
-man -k passwd
-```
-
-**Important distinction:** The section number identifies the type of manual entry, not the command's importance or privilege level. Available entries and section coverage can differ between Linux distributions.
-
-![Searching manual pages with man -k passwd](images/man-k-passwd-search.png)
-
-### 2.3 Manual Page Navigation
+### 2.3 Navigate a Manual Page
 
 | Key | Action |
 |---|---|
@@ -167,13 +155,11 @@ man -k passwd
 | `b` | Move backward one page |
 | `g` | Go to the beginning |
 | `G` | Go to the end |
-| `q` | Quit the manual |
-
-
+| `q` | Quit |
 
 ### 2.4 Practical Example: Finding SUID Files
 
-Use the manual to check the `find` permission syntax.
+Use the manual to check the `find` permission syntax:
 
 ```bash
 man find
@@ -194,13 +180,15 @@ find / -perm -4000 -type f 2>/dev/null
 
 A SUID file is not automatically vulnerable. Review its owner, permissions, behaviour, and configuration before treating it as a possible privilege-escalation path.
 
-**OSCP / CTF tip:** Use `man` to resolve uncertainty about an option. If the manual is unavailable, try `command --help` where supported.
+**Practical tip:** If the manual is unavailable, try `command --help` where supported. Remember that suppressing errors can also hide useful diagnostic information.
+
+![Searching manual pages with man -k passwd](images/man-k-passwd-search.png)
 
 ## 3. Package Management
 
-Kali Linux and Ubuntu both use APT and DPKG. In practice, first check whether a tool is already available. Install packages only when needed in your own lab environment.
+Kali Linux and Ubuntu use APT and DPKG. First check whether a tool is already available; install packages only when needed in your own lab environment.
 
-### 3.1 Check Command and Package Availability
+### 3.1 Check and Search for Tools
 
 ```bash
 # Check whether a command is available in PATH
@@ -208,28 +196,23 @@ command -v nmap
 
 # Check matching package status
 dpkg -l | grep nmap
-```
 
-`command -v` checks whether a command can be found in the current shell's `PATH`. `dpkg -l` checks package status; a command may also have been installed outside APT.
-
-### 3.2 Search and Inspect Packages
-
-```bash
 # Search package metadata
 apt search nmap
-
-# List files recorded for an installed package
-dpkg -L nmap
 ```
 
-| Command | Purpose |
-|---|---|
-| `apt search name` | Search available package metadata |
-| `dpkg -L name` | List files recorded in the installed package database |
+- `command -v` checks whether the shell can find a command through the current `PATH`.
+- `dpkg -l` shows package status.
+- `apt search` searches package metadata.
 
-### 3.3 Install Packages
+A command may have been installed outside APT, so command availability and package status are related but not identical checks.
+
+### 3.2 Inspect and Install Packages
 
 ```bash
+# List files recorded for an installed package
+dpkg -L nmap
+
 # Refresh package indexes; does not upgrade installed packages
 sudo apt update
 
@@ -240,25 +223,25 @@ sudo apt install nmap
 **OSCP / CTF tips:**
 
 - Check whether a tool is already available before trying to install it.
-- Kali and Ubuntu may provide different package versions or repository contents.
+- Kali and Ubuntu may provide different versions or repository contents.
 - A target may have no internet access or no permission to install packages.
-- Avoid unnecessary package upgrades or other system changes on a target.
+- Avoid unnecessary package upgrades or system changes on a target.
 
-**Common mistake:** `apt update` refreshes package indexes; it does not upgrade installed packages.
+## 4. Filesystem Navigation and Basic File Operations
 
-## 4. Shell and Path Basics
-
-Know where you are and how paths are interpreted.
+These commands help you move through a filesystem and inspect or manage files. More advanced searching and text processing belong in the dedicated filesystem/search note.
 
 ### 4.1 Absolute and Relative Paths
 
-| Symbol | Meaning |
+| Symbol or example | Meaning |
 |---|---|
 | `/` | Filesystem root |
 | `~` | Current user's home directory |
 | `.` | Current directory |
 | `..` | Parent directory |
-| `-` in `cd -` | Previous working directory |
+| `/etc/passwd` | Example of an absolute path |
+| `../file.txt` | Example of a relative path |
+| `cd -` | Return to the previous working directory |
 
 ```bash
 pwd
@@ -268,53 +251,29 @@ cd ~
 cd -
 ```
 
-An absolute path starts from `/`, for example `/etc/passwd`. A relative path is interpreted from the current directory, for example `../file.txt`.
-
 **Common mistake:** `cd ..` moves to the parent directory; `cd -` returns to the previous working directory.
 
-### 4.2 Quoting and Special Characters
-
-| Syntax | Meaning | Example |
-|---|---|---|
-| `'...'` | Preserve the literal meaning of characters inside single quotes | `grep 'user name' file.txt` |
-| `"..."` | Preserve most characters literally while allowing variable and command expansion | `echo "$HOME"` |
-| `\` | Escape the next character | `touch file\ name.txt` |
-| `$VAR` | Expand a variable | `echo "$PATH"` |
-| `$(command)` | Substitute command output | `echo "$(whoami)"` |
-
-Quote paths or filenames containing spaces, for example `cat "my file.txt"`.
-
-### 4.3 Useful Shell Commands
+### 4.2 List and Identify Files
 
 ```bash
-pwd                 # Show current directory
-echo "$PATH"        # Show directories searched for commands
-which python3       # Show a command path on many systems
-command -v python3  # Preferred portable shell check
-history             # Show command history in the current shell
-```
-
-A command not found in `PATH` may still exist elsewhere on the filesystem.
-
-## 5. Listing and Viewing Files
-
-Use these commands to inspect files, permissions, and logs during enumeration.
-
-### 5.1 Listing Files
-
-```bash
+ls
+ls -l
 ls -la
 ls -lh
-file filename
+file suspicious.bin
 ```
 
-| Command | Use |
+| Command | Purpose |
 |---|---|
-| `ls -la` | List files, including hidden files, with permissions and ownership |
-| `ls -lh` | Show file sizes in a readable format |
-| `file filename` | Identify the file type |
+| `ls` | List visible entries |
+| `ls -l` | Show permissions, ownership, size, and modification time |
+| `ls -la` | Include hidden entries |
+| `ls -lh` | Display file sizes in a human-readable format |
+| `file filename` | Identify file type from its contents rather than relying on the extension |
 
-### 5.2 Viewing Files and Logs
+Linux filenames are case-sensitive. A file extension is only a naming convention; use `file` when the actual type is uncertain.
+
+### 4.3 View Files and Logs
 
 ```bash
 cat file.txt
@@ -327,98 +286,101 @@ tail -f app.log
 | Command | Use |
 |---|---|
 | `cat file` | Print a short file |
-| `less file` | Read a long file; use `/pattern` to search and `q` to quit |
+| `less file` | Read a long file; `/pattern` searches and `q` exits |
 | `head -n 20 file` | Show the first 20 lines |
 | `tail -n 20 file` | Show the last 20 lines |
 | `tail -f file` | Follow newly appended log lines |
 
-**Common mistake:** `cat` prints the whole file. For large logs or configuration files, use `less`, `head`, or `tail`.
+**Common mistake:** `cat` prints the whole file. For large logs or configuration files, use `less`, `head`, or `tail`. Log paths vary by distribution; some systems use `journalctl` for system logs.
 
-### 5.3 Understanding Basic Permissions
-
-Example permission string:
-
-```text
--rwxr-xr--
-```
-
-| Part | Meaning |
-|---|---|
-| First character `-` | Regular file (`d` indicates a directory) |
-| `rwx` | Owner can read, write, and execute |
-| `r-x` | Group can read and execute |
-| `r--` | Others can read |
-
-Common permission characters:
-
-- `r`: read
-- `w`: write
-- `x`: execute; for directories, it also relates to entering/traversing the directory
-
-## 6. Basic File Operations
-
-### 6.1 Create Files and Directories
+### 4.4 Create, Copy, Move, and Delete
 
 ```bash
 # Create a file or update its timestamps
 touch file.txt
 
-# Create a directory
+# Create directories
 mkdir work
-
-# Create nested directories
 mkdir -p work/logs
-```
 
-`touch` creates an empty file if it does not exist, or updates timestamps if it does. It does not empty an existing file.
-
-### 6.2 Copy, Move, and Rename
-
-```bash
-# Copy a file
+# Copy a file or directory tree
 cp source.txt destination.txt
-
-# Copy a directory tree
 cp -r source_dir/ destination_dir/
 
 # Move or rename
 mv old.txt new.txt
+
+# Delete a file or directory
+rm file.txt
+rmdir empty_dir
+rm -r directory/
 ```
 
 | Command | Purpose |
 |---|---|
+| `touch file` | Create an empty file if it does not exist; otherwise update timestamps |
+| `mkdir -p dir/subdir` | Create a directory and missing parent directories |
 | `cp source dest` | Copy a file |
 | `cp -r source_dir dest_dir` | Copy a directory tree |
-| `mv source dest` | Move or rename a file or directory |
+| `mv source dest` | Move or rename |
+| `rm file` | Remove a file |
+| `rmdir dir` | Remove an empty directory |
+| `rm -r dir` | Recursively remove a directory tree |
 
-### 6.3 Delete Files and Directories
+**Safety reminder:** Check the target path before using `rm -r`. Recursive deletion can remove an entire directory tree. `touch` does not empty an existing file.
+
+## 5. Shell Quoting, Variables, and History
+
+Shell quoting controls how the shell interprets spaces, variables, and special characters. This matters when working with paths, commands, and payloads.
+
+### 5.1 Quotes and Escaping
+
+| Syntax | Meaning | Example |
+|---|---|---|
+| `'...'` | Prevent variable and command expansion inside the quotes | `echo '$HOME'` |
+| `"..."` | Allow variable expansion while preserving most whitespace | `echo "$HOME"` |
+| `\` | Escape the next character | `touch file\ name.txt` |
+| `$VAR` | Expand a variable | `echo "$PATH"` |
+| `$(command)` | Substitute command output | `echo "$(whoami)"` |
+
+Quote paths or variable expansions that may contain spaces:
 
 ```bash
-# Remove a file
-rm file.txt
-
-# Remove an empty directory
-rmdir empty_dir
-
-# Recursively remove a directory tree
-rm -r directory/
+file="my report.txt"
+cat "$file"
 ```
 
-**Safety reminder:** Check the path before using `rm`, especially with recursive deletion.
+### 5.2 Useful Environment and History Commands
 
-## 7. Archives and Compression
+```bash
+echo "$PATH"
+env
+history
+command -v python3
+```
 
-Archives combine files into one package; compression reduces data size. These are related but different operations. `tar` creates archives, while options such as `z` apply gzip compression.
+- `PATH` lists directories searched when the shell looks for commands.
+- `env` displays environment variables.
+- `history` displays command history in the current shell, depending on shell and configuration.
+- `command -v` checks whether a command can be found through shell command lookup.
 
-### 7.1 Archive vs. Compression
+A command not found in `PATH` may still exist elsewhere on the filesystem. Shell behaviour can differ between Bash, Zsh, and other shells.
 
-- **Archive:** Combines files and directories into one file.
-- **Compression:** Reduces the size of data.
-- **`.tar`:** An archive that is not necessarily compressed.
-- **`.tar.gz` / `.tgz`:** A tar archive compressed with gzip.
-- **`.zip`:** A format that packages files and supports compression.
+## 6. Archives and Compression
 
-### 7.2 Create, List, and Extract `tar` Archives
+Archives combine files into one package; compression reduces data size. These are related but different operations.
+
+### 6.1 Common Formats
+
+| Format | Typical command | Notes |
+|---|---|---|
+| `.tar` | `tar -cf archive.tar directory/` | Archive only; not necessarily compressed |
+| `.tar.gz` / `.tgz` | `tar -czf archive.tar.gz directory/` | Tar archive compressed with gzip |
+| `.tar.bz2` | `tar -cjf archive.tar.bz2 directory/` | Tar archive compressed with bzip2 |
+| `.tar.xz` | `tar -cJf archive.tar.xz directory/` | Tar archive compressed with xz |
+| `.zip` | `zip -r archive.zip directory/` | Archive format that supports compression |
+
+### 6.2 Create, List, and Extract Tar Archives
 
 ```bash
 # Create a gzip-compressed tar archive
@@ -430,7 +392,7 @@ tar -tzf archive.tar.gz
 # Extract into the current directory
 tar -xzf archive.tar.gz
 
-# Extract into a specific destination directory
+# Extract into a specific destination
 mkdir -p extracted/
 tar -xzf archive.tar.gz -C extracted/
 ```
@@ -442,82 +404,56 @@ tar -xzf archive.tar.gz -C extracted/
 | `t` | List archive contents |
 | `f` | Specify the archive filename |
 | `z` | Use gzip compression |
-| `v` | Show filenames processed (verbose output) |
+| `j` | Use bzip2 compression |
+| `J` | Use xz compression |
 | `-C dir` | Change to `dir` before performing the operation |
+| `v` | Show filenames processed (verbose output) |
 
-Common format examples:
-
-| Format | Typical command | Notes |
-|---|---|---|
-| `.tar` | `tar -cf archive.tar directory/` | Archive only; not compressed |
-| `.tar.gz` / `.tgz` | `tar -czf archive.tar.gz directory/` | Tar archive compressed with gzip |
-| `.tar.bz2` | `tar -cjf archive.tar.bz2 directory/` | Tar archive compressed with bzip2 |
-| `.tar.xz` | `tar -cJf archive.tar.xz directory/` | Tar archive compressed with xz |
-
-The order of short options is commonly flexible, but keep the archive filename immediately after `f` for clarity.
-
-### 7.3 ZIP Archives
+### 6.3 ZIP and Gzip Commands
 
 ```bash
-# List contents before extraction
+# List ZIP contents before extracting
 unzip -l archive.zip
-
-# Extract into the current directory
-unzip archive.zip
 
 # Extract into a chosen directory
 unzip archive.zip -d extracted/
 
 # Create a ZIP archive
 zip -r archive.zip directory/
+
+# Compress an individual file
+gzip file.txt
+
+# Decompress a gzip file
+gunzip file.txt.gz
 ```
 
-| Command | Purpose |
-|---|---|
-| `unzip -l archive.zip` | List ZIP contents |
-| `unzip archive.zip` | Extract into the current directory |
-| `unzip archive.zip -d directory/` | Extract into a chosen directory |
-| `zip -r archive.zip directory/` | Create a ZIP archive including directory contents |
+`gzip` normally replaces the original file with a compressed `.gz` file. `tar` groups files and directories into an archive; it is often combined with gzip to create `.tar.gz` files.
 
-### 7.4 Other Compression Commands
-
-```bash
-gzip file.txt       # Compress to file.txt.gz; normally removes the original
-gunzip file.txt.gz  # Decompress a .gz file
-```
-
-`gzip` compresses individual files; `tar` groups files and directories into an archive. They are often used together as `.tar.gz`.
-
-### 7.5 Safe Extraction Workflow
+### 6.4 Safe Extraction Workflow
 
 1. **Identify the format:** use `file archive-name` if the extension is unclear.
 2. **List contents first:** use `tar -tzf archive.tar.gz` or `unzip -l archive.zip`.
-3. **Choose the destination:** extract into a new directory when handling unfamiliar archives.
+3. **Choose a destination:** extract unfamiliar archives into a new directory.
 4. **Check the result:** use `ls -la extracted/` or `find extracted/ -maxdepth 2 -type f`.
 
-**Common mistakes:**
+Listing contents does not guarantee an archive is safe. Be careful with unfamiliar files and paths before extraction.
 
-- `tar -czf` creates an archive; `tar -xzf` extracts one; `tar -tzf` lists contents.
-- `.tar` does not necessarily mean compressed. The `z`, `j`, or `J` option selects gzip, bzip2, or xz compression respectively.
-- Listing contents does not guarantee an archive is safe. Be careful with unfamiliar files and paths before extraction.
+## 7. Terminal Editors
 
-**OSCP / CTF tip:** Be comfortable creating, listing, and extracting `.tar.gz` and `.zip` files. These are common formats for transferring scripts, evidence, and challenge files.
+Remember the basic save, search, and exit commands for `nano` and `vim`. Check which editors are installed before relying on one.
 
-## 8. Terminal Editors: Essential Commands
-
-When editing files in a terminal, remember the basic save, search, and exit commands for `nano` and `vim`.
-
-### 8.1 Nano
+### 7.1 Nano
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+O` | Save (write out); press `Enter` to confirm the filename |
+| `Ctrl+O` | Save; press `Enter` to confirm the filename |
 | `Ctrl+X` | Exit |
 | `Ctrl+W` | Search |
 | `Ctrl+K` | Cut the current line |
 | `Ctrl+U` | Paste the cut text |
 
-### 8.2 Vim
+### 7.2 Vim
 
 Vim has different modes. Press `Esc` to return to Normal mode before entering commands.
 
@@ -528,31 +464,31 @@ Vim has different modes. Press `Esc` to return to Normal mode before entering co
 | Save | `:w` |
 | Save and quit | `:wq` |
 | Quit without saving | `:q!` |
-| Quit if there are no unsaved changes | `:q` |
+| Quit if unchanged | `:q` |
 | Delete current line | `dd` |
 | Undo | `u` |
 | Search forward | `/pattern`, then `Enter` |
 | Repeat search | `n` |
 
-**OSCP / CTF tips:**
+**Tips:**
 
-- Use `nano` when you need to edit a configuration file or create a simple script quickly.
+- Use `nano` for quick edits when available.
 - In Vim, press `Esc` before entering commands such as `:wq` or `:q!`.
-- Check whether an editor is available with `command -v nano vim vi`.
-- Verify changes after editing, for example with `cat filename` or `less filename`.
+- Check availability with `command -v nano vim vi`.
+- Verify edits with `cat filename` or `less filename`.
 
-## 9. Common Mistakes
+## 8. Common Mistakes
 
 - Linux filenames are case-sensitive.
-- `>` overwrites a file; `>>` appends output.
-- `2>/dev/null` hides error messages and can also hide useful diagnostic information.
-- `apt update` refreshes package indexes; it does not upgrade installed packages.
-- The distribution version is not the same as the running kernel version.
+- The distribution version and running kernel version are different.
 - `cd ..` and `cd -` do different things.
+- `>` overwrites a file; `>>` appends output.
+- `2>/dev/null` hides standard error and may hide useful diagnostic information.
+- `apt update` refreshes package indexes; it does not upgrade installed packages.
+- A command absent from `PATH` may still exist elsewhere.
 - `touch` does not empty an existing file.
-- `rm -r` can delete entire directory trees.
+- `rm -r` can delete an entire directory tree.
 - A SUID file is a lead to investigate, not proof of a vulnerability.
-- A command being absent from `PATH` does not prove that its package is not installed.
 - An archive extension does not guarantee the file's actual format; use `file` when unsure.
 - Inspect unfamiliar archives before extracting them.
 
@@ -561,4 +497,7 @@ Vim has different modes. Press `Esc` to return to Normal mode before entering co
 - [Quick Reference](Quick-Reference.md)
 - [Filesystem, Search and Text Processing](02-Filesystem-Search-and-Text-Processing.md)
 - [Pipes, Redirection and Bash](03-Pipes-Redirection-and-Bash.md)
+- [Users, Permissions and Privilege Checks](04-Users-Permissions-and-Privilege-Checks.md)
+- [Processes, Services and System Inspection](05-Processes-Services-and-System-Inspection.md)
+- [Networking and File Transfer](06-Networking-and-File-Transfer.md)
 - [Linux Enumeration Checklist](Linux-Enumeration-Checklist.md)
